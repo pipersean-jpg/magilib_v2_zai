@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --color-background: #faf9f7;
+  --color-foreground: #1a1a1a;
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  -webkit-tap-highlight-color: transparent;
+}
