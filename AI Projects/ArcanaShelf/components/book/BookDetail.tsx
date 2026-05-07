@@ -24,6 +24,49 @@ function hasSavedParam(): boolean {
   return new URLSearchParams(window.location.search).get('saved') === '1'
 }
 
+function FactTable({ rows }: { rows: FactRow[] }) {
+  const visible = rows.filter(([, v]) => v != null && v !== '')
+  if (visible.length === 0) return null
+  return (
+    <div className="bg-white rounded-xl border border-stone-200 divide-y divide-stone-100">
+      {visible.map(([label, val]) => (
+        <div key={label} className="flex justify-between items-center px-4 py-2.5">
+          <span className="text-sm text-stone-500">{label}</span>
+          <span className="text-sm text-stone-900 font-medium text-right ml-4">{String(val)}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function ExternalLinkRow({ href, label }: { href: string; label: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center justify-between bg-white rounded-xl border border-stone-200 px-4 py-3 active:bg-stone-50 transition-colors"
+    >
+      <span className="text-sm text-stone-700 font-medium">{label}</span>
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 16 16"
+        fill="none"
+        className="text-stone-400 flex-shrink-0"
+      >
+        <path
+          d="M3 8h10M9 4l4 4-4 4"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </a>
+  )
+}
+
 export function BookDetail({ book, images }: BookDetailProps) {
   const router = useRouter()
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -34,12 +77,10 @@ export function BookDetail({ book, images }: BookDetailProps) {
   const [duplicating, setDuplicating] = useState(false)
   const [duplicateError, setDuplicateError] = useState<string | null>(null)
 
-  // Clear query param from URL — runs once on mount, no setState
   useEffect(() => {
     if (savedBanner) router.replace(`/book/${book.id}`)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-dismiss — setTimeout is async so setState is not synchronous in the effect
   useEffect(() => {
     if (!savedBanner) return
     const t = setTimeout(() => setSavedBanner(false), 4000)
@@ -107,7 +148,6 @@ export function BookDetail({ book, images }: BookDetailProps) {
 
   const bibFacts: FactRow[] = [
     ['Format', formatLabel ?? book.format],
-    ['Performers', book.performers.length > 0 ? book.performers.join(', ') : null],
     ['Publisher', book.publisher],
     ['Year', book.year],
     ['Edition', book.edition],
@@ -131,9 +171,22 @@ export function BookDetail({ book, images }: BookDetailProps) {
     ['Purchase Date', book.purchase_date],
     ['Source', book.purchase_source],
     ['Location', book.location],
+  ]
+
+  const hasSpecialist =
+    book.performers.length > 0 ||
+    !!book.signed ||
+    !!book.limited_edition_number ||
+    !!book.conjuring_archive_url ||
+    !!book.magicref_url
+
+  const specialistFacts: FactRow[] = [
+    ['Performers', book.performers.length > 0 ? book.performers.join(', ') : null],
     ['Signed', book.signed ? 'Yes' : null],
     ['Limited Edition', book.limited_edition_number],
   ]
+
+  const hasQuickStrip = !!(formatLabel ?? book.format) || !!book.year || !!book.signed || !!book.limited_edition_number
 
   return (
     <div className="flex flex-col min-h-full">
@@ -168,20 +221,36 @@ export function BookDetail({ book, images }: BookDetailProps) {
           </div>
         )}
 
-        <div className="mx-auto w-36 aspect-[3/4] rounded-xl overflow-hidden bg-stone-100 shadow-sm">
-          <BookCoverImage storagePath={book.cover_image_path} alt={book.title} />
-        </div>
-
-        <div className="text-center">
-          <h1 className="text-xl font-bold text-stone-900 leading-snug">{book.title}</h1>
-          {book.subtitle && <p className="text-stone-500 text-sm mt-1">{book.subtitle}</p>}
-          {book.authors.length > 0 && (
-            <p className="text-stone-700 text-sm mt-1">{book.authors.join(', ')}</p>
-          )}
+        {/* Hero: cover + title/quick-strip */}
+        <div className="flex gap-4 items-start">
+          <div className="w-28 flex-shrink-0 aspect-[3/4] rounded-xl overflow-hidden bg-stone-100 shadow-sm">
+            <BookCoverImage storagePath={book.cover_image_path} alt={book.title} />
+          </div>
+          <div className="flex-1 min-w-0 pt-1">
+            <h1 className="text-lg font-bold text-stone-900 leading-snug">{book.title}</h1>
+            {book.subtitle && (
+              <p className="text-stone-500 text-sm mt-0.5 leading-snug">{book.subtitle}</p>
+            )}
+            {book.authors.length > 0 && (
+              <p className="text-stone-600 text-sm mt-1">{book.authors.join(', ')}</p>
+            )}
+            {hasQuickStrip && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {(formatLabel ?? book.format) && (
+                  <Badge variant="muted">{formatLabel ?? book.format}</Badge>
+                )}
+                {book.year && <Badge variant="muted">{book.year}</Badge>}
+                {book.signed && <Badge variant="default">Signed</Badge>}
+                {book.limited_edition_number && (
+                  <Badge variant="outline">Ltd {book.limited_edition_number}</Badge>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {topicLabels.length > 0 && (
-          <div className="flex flex-wrap justify-center gap-1.5">
+          <div className="flex flex-wrap gap-1.5">
             {topicLabels.map((label) => (
               <Badge key={label} variant="muted">
                 {label}
@@ -190,18 +259,13 @@ export function BookDetail({ book, images }: BookDetailProps) {
           </div>
         )}
 
+        {/* Bibliographic */}
         {bibFacts.some(([, v]) => v != null && v !== '') && (
-          <div className="bg-white rounded-xl border border-stone-200 divide-y divide-stone-100">
-            {bibFacts
-              .filter(([, v]) => v != null && v !== '')
-              .map(([label, val]) => (
-                <div key={label} className="flex justify-between items-center px-4 py-2.5">
-                  <span className="text-sm text-stone-500">{label}</span>
-                  <span className="text-sm text-stone-900 font-medium text-right ml-4">
-                    {String(val)}
-                  </span>
-                </div>
-              ))}
+          <div>
+            <h2 className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-3">
+              Bibliographic
+            </h2>
+            <FactTable rows={bibFacts} />
           </div>
         )}
 
@@ -214,6 +278,7 @@ export function BookDetail({ book, images }: BookDetailProps) {
           </div>
         )}
 
+        {/* Your Copy */}
         {(copyFacts.some(([, v]) => v != null && v !== '') || book.notes) && (
           <div>
             <h2 className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-3">
@@ -240,31 +305,24 @@ export function BookDetail({ book, images }: BookDetailProps) {
           </div>
         )}
 
-        {(book.conjuring_archive_url || book.magicref_url) && (
+        {/* Specialist */}
+        {hasSpecialist && (
           <div>
             <h2 className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-3">
-              Sources
+              Specialist
             </h2>
             <div className="flex flex-col gap-2">
+              {specialistFacts.some(([, v]) => v != null && v !== '') && (
+                <FactTable rows={specialistFacts} />
+              )}
               {book.conjuring_archive_url && (
-                <a
+                <ExternalLinkRow
                   href={book.conjuring_archive_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-stone-600 hover:text-stone-900 underline underline-offset-2"
-                >
-                  View on Conjuring Archive ↗
-                </a>
+                  label="View on Conjuring Archive"
+                />
               )}
               {book.magicref_url && (
-                <a
-                  href={book.magicref_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-stone-600 hover:text-stone-900 underline underline-offset-2"
-                >
-                  View on MagicRef ↗
-                </a>
+                <ExternalLinkRow href={book.magicref_url} label="View on MagicRef" />
               )}
             </div>
           </div>

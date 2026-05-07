@@ -31,8 +31,9 @@ test.describe('specialist fields', () => {
     await createBook(page, { title: 'Format Field Test', format: 'lecture_notes' })
     await page.goto('/library')
     await page.getByText('Format Field Test').first().click()
+    await page.waitForURL(/\/book\//, { timeout: 10_000 })
 
-    await expect(page.getByText('Lecture Notes')).toBeVisible()
+    await expect(page.getByText('Lecture Notes').first()).toBeVisible()
 
     await deleteBookFromDetail(page)
   })
@@ -57,7 +58,7 @@ test.describe('specialist fields', () => {
     await page.getByText('Signed Field Test').first().click()
     await page.waitForURL(/\/book\//, { timeout: 10_000 })
 
-    await expect(page.getByText('Signed', { exact: true })).toBeVisible()
+    await expect(page.getByText('Signed', { exact: true }).first()).toBeVisible()
 
     await deleteBookFromDetail(page)
   })

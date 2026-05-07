@@ -5,6 +5,7 @@ export interface BookData {
   authors?: string
   year?: string
   format?: string
+  condition?: string
   performers?: string
   signed?: boolean
   limitedEditionNumber?: string
@@ -19,6 +20,7 @@ export async function createBook(page: Page, book: BookData): Promise<void> {
   if (book.authors) await page.getByLabel('Author(s)').fill(book.authors)
   if (book.year) await page.getByLabel('Year').fill(book.year)
   if (book.format) await page.getByLabel('Format').selectOption(book.format)
+  if (book.condition) await page.getByLabel('Condition').selectOption(book.condition)
   if (book.performers) await page.getByLabel('Featured Performers').fill(book.performers)
   if (book.signed) await page.getByLabel('Signed copy').check()
   if (book.limitedEditionNumber) await page.getByLabel('Limited Edition').fill(book.limitedEditionNumber)
