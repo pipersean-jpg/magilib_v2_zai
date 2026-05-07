@@ -4,6 +4,12 @@ export interface BookData {
   title: string
   authors?: string
   year?: string
+  format?: string
+  performers?: string
+  signed?: boolean
+  limitedEditionNumber?: string
+  conjuringArchiveUrl?: string
+  magicrefUrl?: string
 }
 
 export async function createBook(page: Page, book: BookData): Promise<void> {
@@ -11,6 +17,12 @@ export async function createBook(page: Page, book: BookData): Promise<void> {
   await page.getByLabel('Title *').fill(book.title)
   if (book.authors) await page.getByLabel('Author(s)').fill(book.authors)
   if (book.year) await page.getByLabel('Year').fill(book.year)
+  if (book.format) await page.getByLabel('Format').selectOption(book.format)
+  if (book.performers) await page.getByLabel('Featured Performers').fill(book.performers)
+  if (book.signed) await page.getByLabel('Signed copy').check()
+  if (book.limitedEditionNumber) await page.getByLabel('Limited Edition').fill(book.limitedEditionNumber)
+  if (book.conjuringArchiveUrl) await page.getByLabel('Conjuring Archive').fill(book.conjuringArchiveUrl)
+  if (book.magicrefUrl) await page.getByLabel('MagicRef').fill(book.magicrefUrl)
   await page.getByRole('button', { name: 'Add to Library' }).click()
   // Match /library with or without ?saved=1 query param
   await page.waitForURL(/\/library/, { timeout: 15_000 })

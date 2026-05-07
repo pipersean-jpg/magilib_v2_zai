@@ -8,7 +8,7 @@ import { Select } from '@/components/ui/Select'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { PageHeader } from '@/components/layout/PageHeader'
-import { BOOK_CONDITIONS, MAGIC_TOPICS, BOOK_BINDINGS, BOOK_STATUSES, CURRENCIES } from '@/lib/constants'
+import { BOOK_CONDITIONS, MAGIC_TOPICS, BOOK_BINDINGS, BOOK_STATUSES, CURRENCIES, FORMAT_OPTIONS } from '@/lib/constants'
 import type { Book } from '@/types/book'
 
 interface BookFormProps {
@@ -113,11 +113,24 @@ export function BookForm({ existing }: BookFormProps) {
             onChange={(e) => setValue('subtitle', e.target.value)}
             placeholder="Optional subtitle"
           />
+          <Select
+            label="Format"
+            value={values.format}
+            onChange={(e) => setValue('format', e.target.value)}
+            options={FORMAT_OPTIONS}
+            placeholder="Select format…"
+          />
           <Input
             label="Author(s)"
             value={values.authors}
             onChange={(e) => setValue('authors', e.target.value)}
             placeholder="Comma-separated, e.g. S. W. Erdnase"
+          />
+          <Input
+            label="Featured Performers"
+            value={values.performers}
+            onChange={(e) => setValue('performers', e.target.value)}
+            placeholder="Comma-separated, e.g. Dai Vernon, Charlie Miller"
           />
           <div className="grid grid-cols-2 gap-3">
             <Input
@@ -258,6 +271,24 @@ export function BookForm({ existing }: BookFormProps) {
             onChange={(e) => setValue('location', e.target.value)}
             placeholder="e.g. Shelf A3"
           />
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              id="signed"
+              checked={values.signed}
+              onChange={(e) => setValue('signed', e.target.checked)}
+              className="h-4 w-4 rounded border-stone-300 text-stone-900 focus:outline-none focus:ring-2 focus:ring-stone-900 focus:ring-offset-1"
+            />
+            <label htmlFor="signed" className="text-sm font-medium text-stone-700">
+              Signed copy
+            </label>
+          </div>
+          <Input
+            label="Limited Edition"
+            value={values.limited_edition_number}
+            onChange={(e) => setValue('limited_edition_number', e.target.value)}
+            placeholder="e.g. 47/200"
+          />
           <Textarea
             label="Personal Notes"
             value={values.notes}
@@ -270,6 +301,27 @@ export function BookForm({ existing }: BookFormProps) {
             value={values.status}
             onChange={(e) => setValue('status', e.target.value)}
             options={BOOK_STATUSES}
+          />
+        </section>
+
+        {/* Sources */}
+        <section className="flex flex-col gap-4">
+          <h2 className="text-xs font-semibold text-stone-500 uppercase tracking-wider">
+            Sources
+          </h2>
+          <Input
+            label="Conjuring Archive"
+            value={values.conjuring_archive_url}
+            onChange={(e) => setValue('conjuring_archive_url', e.target.value)}
+            placeholder="https://www.conjuringarchive.com/…"
+            warning={fieldWarnings.conjuring_archive_url}
+          />
+          <Input
+            label="MagicRef"
+            value={values.magicref_url}
+            onChange={(e) => setValue('magicref_url', e.target.value)}
+            placeholder="https://magicref.net/…"
+            warning={fieldWarnings.magicref_url}
           />
         </section>
 

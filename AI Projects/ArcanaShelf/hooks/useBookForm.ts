@@ -30,6 +30,12 @@ export type BookFormValues = {
   location: string
   notes: string
   status: string
+  format: string
+  performers: string
+  signed: boolean
+  limited_edition_number: string
+  conjuring_archive_url: string
+  magicref_url: string
 }
 
 type FieldErrors = Partial<Record<keyof BookFormValues, string>>
@@ -59,6 +65,12 @@ const DEFAULT_VALUES: BookFormValues = {
   location: '',
   notes: '',
   status: 'active',
+  format: '',
+  performers: '',
+  signed: false,
+  limited_edition_number: '',
+  conjuring_archive_url: '',
+  magicref_url: '',
 }
 
 function bookToForm(book: Book): BookFormValues {
@@ -86,6 +98,12 @@ function bookToForm(book: Book): BookFormValues {
     location: book.location ?? '',
     notes: book.notes ?? '',
     status: book.status,
+    format: book.format ?? '',
+    performers: book.performers.join(', '),
+    signed: book.signed ?? false,
+    limited_edition_number: book.limited_edition_number ?? '',
+    conjuring_archive_url: book.conjuring_archive_url ?? '',
+    magicref_url: book.magicref_url ?? '',
   }
 }
 
@@ -117,6 +135,15 @@ function formToPayload(v: BookFormValues): Omit<BookInsert, 'user_id'> {
     location: v.location.trim() || null,
     notes: v.notes.trim() || null,
     status: v.status || 'active',
+    format: v.format || null,
+    performers: v.performers
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean),
+    signed: v.signed ? true : null,
+    limited_edition_number: v.limited_edition_number.trim() || null,
+    conjuring_archive_url: v.conjuring_archive_url.trim() || null,
+    magicref_url: v.magicref_url.trim() || null,
   }
 }
 
@@ -160,6 +187,12 @@ function validateForm(values: BookFormValues): { errors: FieldErrors; warnings: 
         'This ISBN-10 format looks unusual. You can still save, but double-check it.'
     }
   }
+
+  if (values.conjuring_archive_url.trim() && !/^https?:\/\/.+/.test(values.conjuring_archive_url.trim()))
+    warnings.conjuring_archive_url = "This doesn't look like a valid URL."
+
+  if (values.magicref_url.trim() && !/^https?:\/\/.+/.test(values.magicref_url.trim()))
+    warnings.magicref_url = "This doesn't look like a valid URL."
 
   return { errors, warnings }
 }

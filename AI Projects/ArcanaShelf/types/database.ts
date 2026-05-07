@@ -36,6 +36,12 @@ export interface Database {
           location: string | null
           notes: string | null
           status: string
+          format: string | null
+          performers: string[]
+          signed: boolean | null
+          limited_edition_number: string | null
+          conjuring_archive_url: string | null
+          magicref_url: string | null
           cover_image_path: string | null
           created_at: string
           updated_at: string
@@ -66,6 +72,12 @@ export interface Database {
           location?: string | null
           notes?: string | null
           status?: string
+          format?: string | null
+          performers?: string[]
+          signed?: boolean | null
+          limited_edition_number?: string | null
+          conjuring_archive_url?: string | null
+          magicref_url?: string | null
           cover_image_path?: string | null
           created_at?: string
           updated_at?: string
@@ -96,6 +108,12 @@ export interface Database {
           location?: string | null
           notes?: string | null
           status?: string
+          format?: string | null
+          performers?: string[]
+          signed?: boolean | null
+          limited_edition_number?: string | null
+          conjuring_archive_url?: string | null
+          magicref_url?: string | null
           cover_image_path?: string | null
         }
         Relationships: []

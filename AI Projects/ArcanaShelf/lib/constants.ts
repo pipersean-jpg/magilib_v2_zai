@@ -19,6 +19,18 @@ export const MAGIC_TOPICS: Array<{ value: string; label: string }> = [
   { value: 'other', label: 'Other' },
 ]
 
+export const FORMAT_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: 'book', label: 'Book' },
+  { value: 'booklet', label: 'Booklet' },
+  { value: 'lecture_notes', label: 'Lecture Notes' },
+  { value: 'manuscript', label: 'Manuscript' },
+  { value: 'pdf', label: 'PDF' },
+  { value: 'dvd_notes', label: 'DVD Notes' },
+  { value: 'convention_notes', label: 'Convention Notes' },
+  { value: 'magazine', label: 'Magazine' },
+  { value: 'other', label: 'Other' },
+]
+
 export const BOOK_BINDINGS: Array<{ value: string; label: string }> = [
   { value: 'hardcover', label: 'Hardcover' },
   { value: 'softcover', label: 'Softcover / Paperback' },

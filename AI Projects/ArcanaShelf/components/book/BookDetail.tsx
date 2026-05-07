@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PageHeader } from '@/components/layout/PageHeader'
-import { MAGIC_TOPICS, BOOK_CONDITIONS } from '@/lib/constants'
+import { MAGIC_TOPICS, BOOK_CONDITIONS, FORMAT_OPTIONS } from '@/lib/constants'
 import { deleteBook } from '@/lib/books'
 import { deleteBookImage } from '@/lib/storage'
 import type { Book, BookImage } from '@/types/book'
@@ -64,8 +64,11 @@ export function BookDetail({ book, images }: BookDetailProps) {
     (t) => MAGIC_TOPICS.find((m) => m.value === t)?.label ?? t
   )
   const conditionLabel = BOOK_CONDITIONS.find((c) => c.value === book.condition)?.label
+  const formatLabel = FORMAT_OPTIONS.find((f) => f.value === book.format)?.label
 
   const bibFacts: FactRow[] = [
+    ['Format', formatLabel ?? book.format],
+    ['Performers', book.performers.length > 0 ? book.performers.join(', ') : null],
     ['Publisher', book.publisher],
     ['Year', book.year],
     ['Edition', book.edition],
@@ -89,6 +92,8 @@ export function BookDetail({ book, images }: BookDetailProps) {
     ['Purchase Date', book.purchase_date],
     ['Source', book.purchase_source],
     ['Location', book.location],
+    ['Signed', book.signed ? 'Yes' : null],
+    ['Limited Edition', book.limited_edition_number],
   ]
 
   return (
@@ -182,6 +187,36 @@ export function BookDetail({ book, images }: BookDetailProps) {
                   <p className="text-xs text-stone-500 mb-1">Notes</p>
                   <p className="text-sm text-stone-700 whitespace-pre-wrap">{book.notes}</p>
                 </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {(book.conjuring_archive_url || book.magicref_url) && (
+          <div>
+            <h2 className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-3">
+              Sources
+            </h2>
+            <div className="flex flex-col gap-2">
+              {book.conjuring_archive_url && (
+                <a
+                  href={book.conjuring_archive_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-stone-600 hover:text-stone-900 underline underline-offset-2"
+                >
+                  View on Conjuring Archive ↗
+                </a>
+              )}
+              {book.magicref_url && (
+                <a
+                  href={book.magicref_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-stone-600 hover:text-stone-900 underline underline-offset-2"
+                >
+                  View on MagicRef ↗
+                </a>
               )}
             </div>
           </div>
