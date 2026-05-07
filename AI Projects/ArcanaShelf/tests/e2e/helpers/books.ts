@@ -10,6 +10,7 @@ export interface BookData {
   limitedEditionNumber?: string
   conjuringArchiveUrl?: string
   magicrefUrl?: string
+  topics?: string[]  // topic labels, e.g. ['Card Magic', 'Theory & Performance']
 }
 
 export async function createBook(page: Page, book: BookData): Promise<void> {
@@ -23,6 +24,11 @@ export async function createBook(page: Page, book: BookData): Promise<void> {
   if (book.limitedEditionNumber) await page.getByLabel('Limited Edition').fill(book.limitedEditionNumber)
   if (book.conjuringArchiveUrl) await page.getByLabel('Conjuring Archive').fill(book.conjuringArchiveUrl)
   if (book.magicrefUrl) await page.getByLabel('MagicRef').fill(book.magicrefUrl)
+  if (book.topics) {
+    for (const label of book.topics) {
+      await page.getByRole('button', { name: label, exact: true }).click()
+    }
+  }
   await page.getByRole('button', { name: 'Add to Library' }).click()
   // Match /library with or without ?saved=1 query param
   await page.waitForURL(/\/library/, { timeout: 15_000 })

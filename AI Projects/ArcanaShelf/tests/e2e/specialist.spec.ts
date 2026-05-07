@@ -55,8 +55,9 @@ test.describe('specialist fields', () => {
     await createBook(page, { title: 'Signed Field Test', signed: true })
     await page.goto('/library')
     await page.getByText('Signed Field Test').first().click()
+    await page.waitForURL(/\/book\//, { timeout: 10_000 })
 
-    await expect(page.getByText('Signed')).toBeVisible()
+    await expect(page.getByText('Signed', { exact: true })).toBeVisible()
 
     await deleteBookFromDetail(page)
   })

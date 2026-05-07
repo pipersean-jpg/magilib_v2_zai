@@ -3,7 +3,10 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useBooks } from '@/hooks/useBooks'
+import { useLibraryFilter } from '@/hooks/useLibraryFilter'
 import { BookCard } from '@/components/book/BookCard'
+import { LibrarySearch } from '@/components/library/LibrarySearch'
+import { LibraryFilters } from '@/components/library/LibraryFilters'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
 
@@ -22,12 +25,25 @@ export default function LibraryPage() {
   const { books, loading, error, refetch } = useBooks()
   const [banner, setBanner] = useState<Banner>(readBannerFromURL)
 
-  // Clear query param from URL — runs once on mount, no setState
+  const {
+    filterState,
+    filteredBooks,
+    isFiltered,
+    setQuery,
+    setFormat,
+    toggleSigned,
+    toggleLimited,
+    toggleHasArchive,
+    toggleHasMagicRef,
+    setTopics,
+    setSort,
+    clearFilters,
+  } = useLibraryFilter(books)
+
   useEffect(() => {
     if (banner) router.replace('/library')
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-dismiss banner — setTimeout is async so setState is not synchronous in the effect
   useEffect(() => {
     if (!banner) return
     const t = setTimeout(() => setBanner(null), 4000)
@@ -87,6 +103,7 @@ export default function LibraryPage() {
           </div>
         )}
 
+        {/* Zero books in library */}
         {!loading && !error && books.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-center gap-4">
             <div className="w-16 h-16 rounded-full bg-stone-100 flex items-center justify-center">
@@ -117,12 +134,63 @@ export default function LibraryPage() {
           </div>
         )}
 
-        {!loading && books.length > 0 && (
-          <div className="flex flex-col gap-3">
-            {books.map((book) => (
-              <BookCard key={book.id} book={book} />
-            ))}
-          </div>
+        {/* Library has books — show search/filter controls and list */}
+        {!loading && !error && books.length > 0 && (
+          <>
+            <LibrarySearch value={filterState.query} onChange={setQuery} />
+
+            <LibraryFilters
+              state={filterState}
+              onFormatChange={setFormat}
+              onToggleSigned={toggleSigned}
+              onToggleLimited={toggleLimited}
+              onToggleHasArchive={toggleHasArchive}
+              onToggleHasMagicRef={toggleHasMagicRef}
+              onTopicsChange={setTopics}
+              onSortChange={setSort}
+            />
+
+            {/* Result count + clear */}
+            {isFiltered && (
+              <div className="flex items-center justify-between text-xs text-stone-500">
+                <span data-testid="result-count">
+                  {filteredBooks.length === books.length
+                    ? `${books.length} book${books.length === 1 ? '' : 's'}`
+                    : `${filteredBooks.length} of ${books.length} books`}
+                </span>
+                <button
+                  onClick={clearFilters}
+                  data-testid="clear-filters"
+                  className="text-stone-500 underline underline-offset-2 hover:text-stone-800"
+                >
+                  Clear filters
+                </button>
+              </div>
+            )}
+
+            {/* Books exist but filters return zero */}
+            {filteredBooks.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
+                <p className="text-stone-700 font-medium" data-testid="no-results-message">
+                  No books match your filters
+                </p>
+                <button
+                  onClick={clearFilters}
+                  className="text-sm text-stone-500 underline underline-offset-2 hover:text-stone-800"
+                >
+                  Clear filters
+                </button>
+              </div>
+            )}
+
+            {filteredBooks.length > 0 && (
+              <div className="flex flex-col gap-3" data-testid="book-list">
+                {filteredBooks.map((book) => (
+                  <BookCard key={book.id} book={book} />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </main>
     </div>
