@@ -75,3 +75,24 @@ export async function deleteBook(id: string): Promise<void> {
   const { error } = await supabase.from('books').delete().eq('id', id)
   if (error) throw error
 }
+
+export async function getDistinctPublishers(): Promise<string[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('books')
+    .select('publisher')
+    .not('publisher', 'is', null)
+    .neq('publisher', '')
+
+  if (error) throw error
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (const row of data ?? []) {
+    const p = row.publisher as string
+    if (p && !seen.has(p)) {
+      seen.add(p)
+      result.push(p)
+    }
+  }
+  return result.sort()
+}

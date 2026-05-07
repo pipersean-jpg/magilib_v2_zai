@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { MAGIC_TOPICS, BOOK_CONDITIONS, FORMAT_OPTIONS } from '@/lib/constants'
-import { deleteBook } from '@/lib/books'
+import { deleteBook, createBook } from '@/lib/books'
 import { deleteBookImage } from '@/lib/storage'
 import type { Book, BookImage } from '@/types/book'
 
@@ -30,6 +30,9 @@ export function BookDetail({ book, images }: BookDetailProps) {
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [savedBanner, setSavedBanner] = useState(hasSavedParam)
+  const [duplicateConfirmOpen, setDuplicateConfirmOpen] = useState(false)
+  const [duplicating, setDuplicating] = useState(false)
+  const [duplicateError, setDuplicateError] = useState<string | null>(null)
 
   // Clear query param from URL — runs once on mount, no setState
   useEffect(() => {
@@ -42,6 +45,42 @@ export function BookDetail({ book, images }: BookDetailProps) {
     const t = setTimeout(() => setSavedBanner(false), 4000)
     return () => clearTimeout(t)
   }, [savedBanner])
+
+  async function handleDuplicate() {
+    setDuplicating(true)
+    setDuplicateError(null)
+    try {
+      const created = await createBook({
+        title: book.title,
+        subtitle: book.subtitle,
+        authors: book.authors,
+        performers: book.performers,
+        publisher: book.publisher,
+        year: book.year,
+        format: book.format,
+        edition: book.edition,
+        printing: book.printing,
+        page_count: book.page_count,
+        binding: book.binding,
+        language: book.language,
+        description: book.description,
+        topics: book.topics,
+        in_print: book.in_print,
+        isbn_10: book.isbn_10,
+        isbn_13: book.isbn_13,
+        conjuring_archive_url: book.conjuring_archive_url,
+        magicref_url: book.magicref_url,
+        cover_image_path: null,
+        status: 'active',
+      })
+      router.push(`/book/${created.id}/edit?duplicated=1`)
+      router.refresh()
+    } catch (e: unknown) {
+      setDuplicateError(e instanceof Error ? e.message : 'Failed to duplicate book.')
+      setDuplicating(false)
+      setDuplicateConfirmOpen(false)
+    }
+  }
 
   async function handleDelete() {
     setDeleting(true)
@@ -99,11 +138,20 @@ export function BookDetail({ book, images }: BookDetailProps) {
   return (
     <div className="flex flex-col min-h-full">
       <PageHeader title="">
-        <Link href={`/book/${book.id}/edit`}>
-          <Button variant="secondary" size="sm">
-            Edit
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setDuplicateConfirmOpen(true)}
+          >
+            Duplicate
           </Button>
-        </Link>
+          <Link href={`/book/${book.id}/edit`}>
+            <Button variant="secondary" size="sm">
+              Edit
+            </Button>
+          </Link>
+        </div>
       </PageHeader>
 
       <main className="flex-1 px-4 py-5 flex flex-col gap-6 pb-8">
@@ -222,6 +270,12 @@ export function BookDetail({ book, images }: BookDetailProps) {
           </div>
         )}
 
+        {duplicateError && (
+          <div className="rounded-lg bg-red-50 border border-red-200 text-red-700 p-3 text-sm">
+            {duplicateError}
+          </div>
+        )}
+
         {deleteError && (
           <div className="rounded-lg bg-red-50 border border-red-200 text-red-700 p-3 text-sm">
             {deleteError}
@@ -241,10 +295,22 @@ export function BookDetail({ book, images }: BookDetailProps) {
       </main>
 
       <ConfirmDialog
+        open={duplicateConfirmOpen}
+        title={`Duplicate "${book.title}"?`}
+        body="A new copy of this book will be created with the same bibliographic and specialist fields. Cover image will not be copied."
+        confirmLabel="Duplicate"
+        confirmVariant="primary"
+        loading={duplicating}
+        onConfirm={handleDuplicate}
+        onCancel={() => setDuplicateConfirmOpen(false)}
+      />
+
+      <ConfirmDialog
         open={confirmOpen}
         title={`Remove "${book.title}"?`}
         body="This will permanently delete the book and its cover image from your library. This cannot be undone."
         confirmLabel="Remove"
+        confirmLoadingLabel="Removing…"
         loading={deleting}
         onConfirm={handleDelete}
         onCancel={() => setConfirmOpen(false)}

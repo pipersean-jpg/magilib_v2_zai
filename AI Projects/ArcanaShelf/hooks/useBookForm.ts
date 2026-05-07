@@ -73,6 +73,49 @@ const DEFAULT_VALUES: BookFormValues = {
   magicref_url: '',
 }
 
+// Exported so tests can override TTL to simulate expiry without real-time waits
+export const STICKY_TTL_MS = 30 * 60 * 1000
+const STICKY_KEY = 'arcanashelf_sticky_v1'
+
+type StickyPayload = {
+  format: string
+  publisher: string
+  topics: string[]
+  ts: number
+}
+
+function readSticky(): Pick<BookFormValues, 'format' | 'publisher' | 'topics'> | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = localStorage.getItem(STICKY_KEY)
+    if (!raw) return null
+    const p: StickyPayload = JSON.parse(raw)
+    if (Date.now() - p.ts > STICKY_TTL_MS) {
+      localStorage.removeItem(STICKY_KEY)
+      return null
+    }
+    return { format: p.format, publisher: p.publisher, topics: p.topics }
+  } catch {
+    return null
+  }
+}
+
+function writeSticky(values: BookFormValues): void {
+  if (typeof window === 'undefined') return
+  const payload: StickyPayload = {
+    format: values.format,
+    publisher: values.publisher,
+    topics: [...values.topics],
+    ts: Date.now(),
+  }
+  localStorage.setItem(STICKY_KEY, JSON.stringify(payload))
+}
+
+export function clearStickyStorage(): void {
+  if (typeof window === 'undefined') return
+  localStorage.removeItem(STICKY_KEY)
+}
+
 function bookToForm(book: Book): BookFormValues {
   return {
     title: book.title,
@@ -199,9 +242,17 @@ function validateForm(values: BookFormValues): { errors: FieldErrors; warnings: 
 
 export function useBookForm(existing?: Book) {
   const router = useRouter()
-  const [values, setValues] = useState<BookFormValues>(
-    existing ? bookToForm(existing) : DEFAULT_VALUES
-  )
+
+  const [values, setValues] = useState<BookFormValues>(() => {
+    if (existing) return bookToForm(existing)
+    const sticky = readSticky()
+    return sticky ? { ...DEFAULT_VALUES, ...sticky } : DEFAULT_VALUES
+  })
+  const [stickyActive, setStickyActive] = useState<boolean>(() => {
+    if (existing) return false
+    return readSticky() !== null
+  })
+  const [savedTitle, setSavedTitle] = useState<string | null>(null)
   const [coverFile, setCoverFile] = useState<File | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -228,7 +279,22 @@ export function useBookForm(existing?: Book) {
     }))
   }
 
-  async function submit() {
+  function clearStickyFields() {
+    clearStickyStorage()
+    setStickyActive(false)
+    setValues((prev) => ({
+      ...prev,
+      format: DEFAULT_VALUES.format,
+      publisher: DEFAULT_VALUES.publisher,
+      topics: DEFAULT_VALUES.topics,
+    }))
+  }
+
+  function dismissSavedBanner() {
+    setSavedTitle(null)
+  }
+
+  async function submit(mode: 'save' | 'saveAndAdd' = 'save') {
     const { errors, warnings } = validateForm(values)
     setFieldErrors(errors)
     setFieldWarnings(warnings)
@@ -251,14 +317,17 @@ export function useBookForm(existing?: Book) {
 
     // Step 1: save book metadata. Failure stays on form — no data lost.
     let savedId: string
+    let savedTitleValue: string
     try {
       const payload = formToPayload(values)
       if (existing) {
         const updated = await updateBook(existing.id, payload as BookUpdate)
         savedId = updated.id
+        savedTitleValue = updated.title
       } else {
         const created = await createBook(payload)
         savedId = created.id
+        savedTitleValue = created.title
       }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to save book.')
@@ -299,6 +368,23 @@ export function useBookForm(existing?: Book) {
     }
 
     setSubmitting(false)
+
+    if (mode === 'saveAndAdd') {
+      writeSticky(values)
+      setSavedTitle(savedTitleValue)
+      setValues({
+        ...DEFAULT_VALUES,
+        format: values.format,
+        publisher: values.publisher,
+        topics: [...values.topics],
+      })
+      setStickyActive(true)
+      setCoverFile(null)
+      setFieldErrors({})
+      setFieldWarnings({})
+      return
+    }
+
     router.push(existing ? `/book/${savedId}?saved=1` : '/library?saved=1')
     router.refresh()
   }
@@ -315,5 +401,9 @@ export function useBookForm(existing?: Book) {
     fieldErrors,
     fieldWarnings,
     submit,
+    savedTitle,
+    dismissSavedBanner,
+    stickyActive,
+    clearStickyFields,
   }
 }

@@ -1,7 +1,9 @@
 'use client'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useBookForm } from '@/hooks/useBookForm'
+import { getDistinctPublishers } from '@/lib/books'
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { Select } from '@/components/ui/Select'
@@ -13,9 +15,10 @@ import type { Book } from '@/types/book'
 
 interface BookFormProps {
   existing?: Book
+  bannerMessage?: string
 }
 
-export function BookForm({ existing }: BookFormProps) {
+export function BookForm({ existing, bannerMessage }: BookFormProps) {
   const router = useRouter()
   const {
     values,
@@ -29,7 +32,19 @@ export function BookForm({ existing }: BookFormProps) {
     fieldErrors,
     fieldWarnings,
     submit,
+    savedTitle,
+    dismissSavedBanner,
+    stickyActive,
+    clearStickyFields,
   } = useBookForm(existing)
+
+  const [publishers, setPublishers] = useState<string[]>([])
+
+  useEffect(() => {
+    getDistinctPublishers()
+      .then(setPublishers)
+      .catch(() => {})
+  }, [])
 
   return (
     <div className="flex flex-col min-h-full">
@@ -40,6 +55,39 @@ export function BookForm({ existing }: BookFormProps) {
       </PageHeader>
 
       <main className="flex-1 px-4 py-5 flex flex-col gap-6">
+        {bannerMessage && (
+          <div className="rounded-lg bg-blue-50 border border-blue-200 text-blue-800 p-3 text-sm">
+            {bannerMessage}
+          </div>
+        )}
+
+        {savedTitle && (
+          <div className="rounded-lg bg-green-50 border border-green-200 text-green-800 p-3 text-sm flex items-center justify-between">
+            <span>Saved: {savedTitle}. Fill next book.</span>
+            <button
+              type="button"
+              onClick={dismissSavedBanner}
+              className="ml-3 text-green-700 font-medium hover:text-green-900"
+              aria-label="Dismiss saved banner"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+        {stickyActive && !existing && (
+          <div className="rounded-lg bg-stone-100 border border-stone-200 text-stone-700 p-3 text-sm flex items-center justify-between">
+            <span>Carrying format, publisher, topics from last save.</span>
+            <button
+              type="button"
+              onClick={clearStickyFields}
+              className="ml-3 text-stone-600 font-medium hover:text-stone-900 underline underline-offset-2"
+            >
+              Clear
+            </button>
+          </div>
+        )}
+
         {/* Cover image upload */}
         <section>
           <h2 className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-3">
@@ -156,7 +204,15 @@ export function BookForm({ existing }: BookFormProps) {
             value={values.publisher}
             onChange={(e) => setValue('publisher', e.target.value)}
             placeholder="e.g. Hermetic Press"
+            list="publisher-suggestions"
           />
+          {publishers.length > 0 && (
+            <datalist id="publisher-suggestions">
+              {publishers.map((p) => (
+                <option key={p} value={p} />
+              ))}
+            </datalist>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <Input
               label="Edition"
@@ -340,9 +396,22 @@ export function BookForm({ existing }: BookFormProps) {
           </div>
         )}
 
-        <Button onClick={submit} disabled={submitting} size="lg" className="w-full mb-6">
-          {submitting ? 'Saving…' : existing ? 'Save Changes' : 'Add to Library'}
-        </Button>
+        <div className="flex flex-col gap-3 mb-6">
+          <Button onClick={() => submit()} disabled={submitting} size="lg" className="w-full">
+            {submitting ? 'Saving…' : existing ? 'Save Changes' : 'Add to Library'}
+          </Button>
+          {!existing && (
+            <Button
+              variant="secondary"
+              onClick={() => submit('saveAndAdd')}
+              disabled={submitting}
+              size="lg"
+              className="w-full"
+            >
+              {submitting ? 'Saving…' : 'Save and Add Another'}
+            </Button>
+          )}
+        </div>
       </main>
     </div>
   )
