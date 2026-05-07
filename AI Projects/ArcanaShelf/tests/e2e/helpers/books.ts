@@ -12,13 +12,18 @@ export async function createBook(page: Page, book: BookData): Promise<void> {
   if (book.authors) await page.getByLabel('Author(s)').fill(book.authors)
   if (book.year) await page.getByLabel('Year').fill(book.year)
   await page.getByRole('button', { name: 'Add to Library' }).click()
-  await page.waitForURL('**/library', { timeout: 15_000 })
+  // Match /library with or without ?saved=1 query param
+  await page.waitForURL(/\/library/, { timeout: 15_000 })
 }
 
 export async function deleteBookFromDetail(page: Page): Promise<void> {
-  page.once('dialog', (d) => d.accept())
   await page.getByRole('button', { name: 'Remove from Library' }).click()
-  await page.waitForURL('**/library', { timeout: 10_000 })
+  // Scope confirm click to the dialog to avoid matching the trigger button
+  const dialog = page.getByRole('dialog')
+  await dialog.waitFor({ state: 'visible', timeout: 5_000 })
+  await dialog.getByRole('button', { name: 'Remove', exact: true }).click()
+  // Match /library with or without ?deleted=1 query param
+  await page.waitForURL(/\/library/, { timeout: 10_000 })
 }
 
 export async function deleteBookByTitle(page: Page, title: string): Promise<void> {

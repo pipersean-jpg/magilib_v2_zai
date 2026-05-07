@@ -4,10 +4,11 @@ import { cn } from '@/lib/utils'
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string
   error?: string
+  warning?: string
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, className, id, ...props }, ref) => {
+  ({ label, error, warning, className, id, ...props }, ref) => {
     const inputId = id ?? label?.toLowerCase().replace(/\s+/g, '-')
     return (
       <div className="flex flex-col gap-1">
@@ -24,11 +25,13 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             'focus:outline-none focus:ring-2 focus:ring-stone-900 focus:ring-offset-1',
             'disabled:opacity-50 disabled:bg-stone-50',
             error && 'border-red-400 focus:ring-red-500',
+            !error && warning && 'border-amber-400 focus:ring-amber-500',
             className
           )}
           {...props}
         />
         {error && <p className="text-red-600 text-xs">{error}</p>}
+        {!error && warning && <p className="text-amber-700 text-xs">{warning}</p>}
       </div>
     )
   }

@@ -1,10 +1,11 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { BookCoverImage } from '@/components/book/BookCoverImage'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { MAGIC_TOPICS, BOOK_CONDITIONS } from '@/lib/constants'
 import { deleteBook } from '@/lib/books'
@@ -18,23 +19,44 @@ interface BookDetailProps {
 
 type FactRow = [string, string | number | null | undefined]
 
+function hasSavedParam(): boolean {
+  if (typeof window === 'undefined') return false
+  return new URLSearchParams(window.location.search).get('saved') === '1'
+}
+
 export function BookDetail({ book, images }: BookDetailProps) {
   const router = useRouter()
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [savedBanner, setSavedBanner] = useState(hasSavedParam)
+
+  // Clear query param from URL — runs once on mount, no setState
+  useEffect(() => {
+    if (savedBanner) router.replace(`/book/${book.id}`)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-dismiss — setTimeout is async so setState is not synchronous in the effect
+  useEffect(() => {
+    if (!savedBanner) return
+    const t = setTimeout(() => setSavedBanner(false), 4000)
+    return () => clearTimeout(t)
+  }, [savedBanner])
 
   async function handleDelete() {
-    if (!confirm('Remove this book from your library? This cannot be undone.')) return
     setDeleting(true)
+    setDeleteError(null)
     try {
       for (const img of images) {
         await deleteBookImage(img.storage_path)
       }
       await deleteBook(book.id)
-      router.push('/library')
+      router.push('/library?deleted=1')
       router.refresh()
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : 'Failed to delete book.')
+      setDeleteError(e instanceof Error ? e.message : 'Failed to delete book.')
       setDeleting(false)
+      setConfirmOpen(false)
     }
   }
 
@@ -80,6 +102,19 @@ export function BookDetail({ book, images }: BookDetailProps) {
       </PageHeader>
 
       <main className="flex-1 px-4 py-5 flex flex-col gap-6 pb-8">
+        {savedBanner && (
+          <div className="rounded-lg bg-green-50 border border-green-200 text-green-800 p-3 text-sm flex items-center justify-between">
+            <span>Book saved successfully.</span>
+            <button
+              onClick={() => setSavedBanner(false)}
+              className="ml-3 text-green-700 font-medium hover:text-green-900"
+              aria-label="Dismiss"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         <div className="mx-auto w-36 aspect-[3/4] rounded-xl overflow-hidden bg-stone-100 shadow-sm">
           <BookCoverImage storagePath={book.cover_image_path} alt={book.title} />
         </div>
@@ -152,18 +187,33 @@ export function BookDetail({ book, images }: BookDetailProps) {
           </div>
         )}
 
+        {deleteError && (
+          <div className="rounded-lg bg-red-50 border border-red-200 text-red-700 p-3 text-sm">
+            {deleteError}
+          </div>
+        )}
+
         <div className="pt-2">
           <Button
             variant="danger"
             size="sm"
-            onClick={handleDelete}
-            disabled={deleting}
+            onClick={() => setConfirmOpen(true)}
             className="w-full"
           >
-            {deleting ? 'Removing…' : 'Remove from Library'}
+            Remove from Library
           </Button>
         </div>
       </main>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        title={`Remove "${book.title}"?`}
+        body="This will permanently delete the book and its cover image from your library. This cannot be undone."
+        confirmLabel="Remove"
+        loading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmOpen(false)}
+      />
     </div>
   )
 }

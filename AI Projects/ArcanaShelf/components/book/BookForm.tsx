@@ -17,8 +17,19 @@ interface BookFormProps {
 
 export function BookForm({ existing }: BookFormProps) {
   const router = useRouter()
-  const { values, setValue, toggleTopic, coverFile, setCoverFile, submitting, error, imageError, submit } =
-    useBookForm(existing)
+  const {
+    values,
+    setValue,
+    toggleTopic,
+    coverFile,
+    setCoverFile,
+    submitting,
+    error,
+    imageError,
+    fieldErrors,
+    fieldWarnings,
+    submit,
+  } = useBookForm(existing)
 
   return (
     <div className="flex flex-col min-h-full">
@@ -94,6 +105,7 @@ export function BookForm({ existing }: BookFormProps) {
             onChange={(e) => setValue('title', e.target.value)}
             placeholder="e.g. Expert at the Card Table"
             required
+            error={fieldErrors.title}
           />
           <Input
             label="Subtitle"
@@ -116,6 +128,7 @@ export function BookForm({ existing }: BookFormProps) {
               placeholder="e.g. 1902"
               min={1700}
               max={new Date().getFullYear() + 2}
+              error={fieldErrors.year}
             />
             <Select
               label="Binding"
@@ -151,12 +164,14 @@ export function BookForm({ existing }: BookFormProps) {
               value={values.isbn_13}
               onChange={(e) => setValue('isbn_13', e.target.value)}
               placeholder="978-…"
+              warning={fieldWarnings.isbn_13}
             />
             <Input
               label="ISBN-10"
               value={values.isbn_10}
               onChange={(e) => setValue('isbn_10', e.target.value)}
               placeholder="Optional"
+              warning={fieldWarnings.isbn_10}
             />
           </div>
           <Input
@@ -216,6 +231,7 @@ export function BookForm({ existing }: BookFormProps) {
               placeholder="0.00"
               min={0}
               step="0.01"
+              error={fieldErrors.purchase_price}
             />
             <Select
               label="Currency"

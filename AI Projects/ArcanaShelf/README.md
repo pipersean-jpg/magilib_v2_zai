@@ -164,19 +164,51 @@ npm run build
 
 ---
 
-## Recommended Next Step: M1.1 Hardening
+## Production Deployment Checklist
 
-> Scope only — do not implement until approved.
+> Complete all steps before pointing real users at this app.
 
-| Area | Work |
-|------|------|
-| Delete confirmation dialog | Prevent accidental deletes — confirm before removing book + storage |
-| Form validation | Stronger client-side validation (required fields, year range, file size/type limits) |
-| Loading / error / empty states | Skeleton loaders, retry buttons, better empty-library prompt |
-| Mobile responsive polish | Audit layout on 375px viewport; fix any overflow / tap-target issues |
-| Vercel deployment | `vercel.json`, environment variable setup, preview deployment workflow |
-| Supabase production checklist | Email confirmation ON, strong RLS audit, storage bucket policy review |
-| Local Supabase test setup | `supabase start` + local migrations so E2E tests run without a remote project |
+### Supabase
+
+- [ ] Use a **separate production Supabase project** — never share with your test project
+- [ ] **Enable email confirmation** — Authentication → Configuration → Email → Confirm email: ON (must be ON for production)
+- [ ] Audit all RLS policies — every table must have correct SELECT / INSERT / UPDATE / DELETE policies scoped to `auth.uid()`
+- [ ] Verify storage bucket policies — the three `create policy` statements in `001_initial.sql` must be applied; bucket must be private (Public: OFF)
+- [ ] Set **Supabase Auth redirect URL** to your production domain — Authentication → URL Configuration → Site URL and Redirect URLs
+- [ ] Review signed URL expiry (currently 1 hour) — adjust in `lib/storage.ts` if your use case requires longer or shorter TTL
+
+### Vercel
+
+- [ ] Connect repo to Vercel (Import Project → GitHub)
+- [ ] Set environment variables in Vercel dashboard (Settings → Environment Variables):
+  - `NEXT_PUBLIC_SUPABASE_URL` — from Supabase project settings
+  - `NEXT_PUBLIC_SUPABASE_ANON_KEY` — from Supabase project settings
+- [ ] Verify build completes without errors (`npm run build` locally first)
+- [ ] Add production domain to Supabase Auth → URL Configuration → Redirect URLs
+
+### Post-deploy verification
+
+- [ ] Sign up with a real email — confirm the confirmation email is sent and the flow works
+- [ ] Add a book with a cover image — verify image uploads and displays correctly
+- [ ] Verify signed URL images load (1-hour TTL — test that cover images are visible)
+- [ ] Delete a book — verify storage cleanup works
+- [ ] Sign out and back in — verify session handling
+
+---
+
+## M1.1 Hardening — COMPLETE
+
+**Verified:** 2026-05-07
+
+| Area | Status |
+|------|--------|
+| Delete confirmation dialog | ✓ Custom modal with book title + permanent-delete warning |
+| Inline form validation | ✓ Title required, year range, negative price (blocking); ISBN format (advisory) |
+| Library error retry | ✓ Retry button on load error |
+| Success feedback | ✓ Green banner after create/edit; neutral banner after delete (URL param, auto-dismiss) |
+| Mobile audit | ✓ No genuine layout issues found at 375px or 320px |
+| Production deployment checklist | ✓ Added to README |
+| E2E tests | ✓ 8 new tests in hardening.spec.ts |
 
 ---
 

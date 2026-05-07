@@ -32,6 +32,9 @@ export type BookFormValues = {
   status: string
 }
 
+type FieldErrors = Partial<Record<keyof BookFormValues, string>>
+type FieldWarnings = Partial<Record<keyof BookFormValues, string>>
+
 const DEFAULT_VALUES: BookFormValues = {
   title: '',
   subtitle: '',
@@ -117,6 +120,50 @@ function formToPayload(v: BookFormValues): Omit<BookInsert, 'user_id'> {
   }
 }
 
+function validateForm(values: BookFormValues): { errors: FieldErrors; warnings: FieldWarnings } {
+  const errors: FieldErrors = {}
+  const warnings: FieldWarnings = {}
+
+  if (!values.title.trim()) {
+    errors.title = 'Title is required.'
+  }
+
+  if (values.year.trim()) {
+    const y = Number(values.year.trim())
+    const maxYear = new Date().getFullYear() + 2
+    if (!Number.isInteger(y) || isNaN(y)) {
+      errors.year = 'Year must be a whole number.'
+    } else if (y < 1700 || y > maxYear) {
+      errors.year = `Year must be between 1700 and ${maxYear}.`
+    }
+  }
+
+  if (values.purchase_price.trim()) {
+    const p = parseFloat(values.purchase_price)
+    if (isNaN(p) || p < 0) {
+      errors.purchase_price = 'Purchase price cannot be negative.'
+    }
+  }
+
+  if (values.isbn_13.trim()) {
+    const digits = values.isbn_13.replace(/[\s-]/g, '')
+    if (!/^\d{13}$/.test(digits) || !/^97[89]/.test(digits)) {
+      warnings.isbn_13 =
+        'This ISBN-13 format looks unusual. You can still save, but double-check it.'
+    }
+  }
+
+  if (values.isbn_10.trim()) {
+    const clean = values.isbn_10.replace(/[\s-]/g, '')
+    if (!/^\d{9}[\dXx]$/.test(clean)) {
+      warnings.isbn_10 =
+        'This ISBN-10 format looks unusual. You can still save, but double-check it.'
+    }
+  }
+
+  return { errors, warnings }
+}
+
 export function useBookForm(existing?: Book) {
   const router = useRouter()
   const [values, setValues] = useState<BookFormValues>(
@@ -126,9 +173,17 @@ export function useBookForm(existing?: Book) {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [imageError, setImageError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
+  const [fieldWarnings, setFieldWarnings] = useState<FieldWarnings>({})
 
   function setValue<K extends keyof BookFormValues>(key: K, val: BookFormValues[K]) {
     setValues((prev) => ({ ...prev, [key]: val }))
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev
+      const next = { ...prev }
+      delete next[key]
+      return next
+    })
   }
 
   function toggleTopic(topic: string) {
@@ -141,10 +196,11 @@ export function useBookForm(existing?: Book) {
   }
 
   async function submit() {
-    if (!values.title.trim()) {
-      setError('Title is required.')
-      return
-    }
+    const { errors, warnings } = validateForm(values)
+    setFieldErrors(errors)
+    setFieldWarnings(warnings)
+    if (Object.keys(errors).length > 0) return
+
     setSubmitting(true)
     setError(null)
     setImageError(null)
@@ -210,9 +266,21 @@ export function useBookForm(existing?: Book) {
     }
 
     setSubmitting(false)
-    router.push(existing ? `/book/${savedId}` : '/library')
+    router.push(existing ? `/book/${savedId}?saved=1` : '/library?saved=1')
     router.refresh()
   }
 
-  return { values, setValue, toggleTopic, coverFile, setCoverFile, submitting, error, imageError, submit }
+  return {
+    values,
+    setValue,
+    toggleTopic,
+    coverFile,
+    setCoverFile,
+    submitting,
+    error,
+    imageError,
+    fieldErrors,
+    fieldWarnings,
+    submit,
+  }
 }

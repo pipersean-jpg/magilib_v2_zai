@@ -22,10 +22,10 @@ test.beforeAll(async ({ browser }) => {
     await page.getByLabel('Title *').fill(BOOK_TITLE)
     await page.locator('input[type="file"]').setInputFiles(TEST_COVER)
     await page.getByRole('button', { name: 'Add to Library' }).click()
-    // If we land on /library, image upload succeeded (bucket configured)
+    // If we land on /library (with or without ?saved=1), image upload succeeded
     // If still on /add, image upload failed (bucket not configured) but book was saved
     try {
-      await page.waitForURL('**/library', { timeout: 15_000 })
+      await page.waitForURL(/\/library/, { timeout: 15_000 })
       imageReady = true
     } catch {
       // Bucket not configured — book metadata saved, no cover
