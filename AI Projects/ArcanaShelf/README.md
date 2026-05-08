@@ -132,7 +132,7 @@ npm run build
 | Language | TypeScript strict |
 | Styling | Tailwind v4 (CSS-based config — no `tailwind.config.ts`) |
 | Auth + DB | Supabase (`@supabase/ssr`) |
-| Deployment | Vercel (not yet configured) |
+| Deployment | Vercel |
 
 ### Next.js 16 notes
 
@@ -164,35 +164,125 @@ npm run build
 
 ---
 
-## Production Deployment Checklist
+## Production Deployment
 
-> Complete all steps before pointing real users at this app.
+### Overview
 
-### Supabase
+ArcanaShelf deploys to **Vercel** (Next.js host) with a separate **Supabase production project** (auth + DB + storage). Use dedicated projects for production and dev/test — never share them.
 
-- [ ] Use a **separate production Supabase project** — never share with your test project
-- [ ] **Enable email confirmation** — Authentication → Configuration → Email → Confirm email: ON (must be ON for production)
-- [ ] Audit all RLS policies — every table must have correct SELECT / INSERT / UPDATE / DELETE policies scoped to `auth.uid()`
-- [ ] Verify storage bucket policies — the three `create policy` statements in `001_initial.sql` must be applied; bucket must be private (Public: OFF)
-- [ ] Set **Supabase Auth redirect URL** to your production domain — Authentication → URL Configuration → Site URL and Redirect URLs
-- [ ] Review signed URL expiry (currently 1 hour) — adjust in `lib/storage.ts` if your use case requires longer or shorter TTL
+---
 
-### Vercel
+### Step 1 — Create a production Supabase project
 
-- [ ] Connect repo to Vercel (Import Project → GitHub)
-- [ ] Set environment variables in Vercel dashboard (Settings → Environment Variables):
-  - `NEXT_PUBLIC_SUPABASE_URL` — from Supabase project settings
-  - `NEXT_PUBLIC_SUPABASE_ANON_KEY` — from Supabase project settings
-- [ ] Verify build completes without errors (`npm run build` locally first)
-- [ ] Add production domain to Supabase Auth → URL Configuration → Redirect URLs
+1. Go to [supabase.com](https://supabase.com) → New project.
+2. Choose a region close to your users. Note your **Project URL** and **anon key** (Settings → API).
 
-### Post-deploy verification
+---
 
-- [ ] Sign up with a real email — confirm the confirmation email is sent and the flow works
-- [ ] Add a book with a cover image — verify image uploads and displays correctly
-- [ ] Verify signed URL images load (1-hour TTL — test that cover images are visible)
-- [ ] Delete a book — verify storage cleanup works
-- [ ] Sign out and back in — verify session handling
+### Step 2 — Apply database migrations
+
+In the Supabase Dashboard → SQL Editor, run each migration **in order**:
+
+```
+supabase/migrations/001_initial.sql
+supabase/migrations/002_specialist_fields.sql
+```
+
+Run them as separate queries, 001 first. Both must succeed.
+
+---
+
+### Step 3 — Create the private storage bucket
+
+1. Storage → New bucket
+2. **Name:** `book-images`
+3. **Public:** OFF (must be private)
+
+Then in the SQL Editor, run the three storage RLS policies from the comments at the bottom of `001_initial.sql` (lines 116–126). Uncomment and run each `create policy` statement:
+
+```sql
+-- owner upload
+create policy "owner upload" on storage.objects for insert
+  with check (bucket_id = 'book-images' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- owner read
+create policy "owner read" on storage.objects for select
+  using (bucket_id = 'book-images' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- owner delete
+create policy "owner delete" on storage.objects for delete
+  using (bucket_id = 'book-images' and (storage.foldername(name))[1] = auth.uid()::text);
+```
+
+These are not applied by the migration automatically — they must be run manually.
+
+---
+
+### Step 4 — Configure Supabase auth
+
+1. **Enable email provider** — Authentication → Providers → Email → Enable Email provider: ON
+2. **Enable email confirmation** — Authentication → Configuration → Email → Confirm email: **ON**
+   - Production must require email confirmation. (Dev/test E2E may need this OFF — use a separate project.)
+3. **Set Site URL** — Authentication → URL Configuration → Site URL: `https://your-app.vercel.app`
+4. **Add Redirect URL** — Authentication → URL Configuration → Redirect URLs → Add: `https://your-app.vercel.app/**`
+   - Replace `your-app.vercel.app` with your actual Vercel domain.
+   - The `/**` wildcard is required.
+
+---
+
+### Step 5 — Deploy to Vercel
+
+1. Go to [vercel.com](https://vercel.com) → Add New Project → Import your GitHub repo.
+2. Framework preset: **Next.js** (auto-detected).
+3. **Environment Variables** — add both vars (Settings → Environment Variables):
+   - `NEXT_PUBLIC_SUPABASE_URL` — your production Supabase project URL
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` — your production Supabase anon key
+   - No other env vars are required. Do not add a service role key.
+4. Click **Deploy**.
+
+---
+
+### Production checklist
+
+Complete all items before using the app with real data.
+
+**Supabase project**
+- [ ] Separate production project (not shared with dev/test)
+- [ ] Migration 001 applied
+- [ ] Migration 002 applied
+- [ ] `book-images` bucket exists and is private (Public: OFF)
+- [ ] Three storage RLS policies applied (owner upload / owner read / owner delete)
+- [ ] DB RLS enabled on all tables (applied by migrations — verify in Table Editor → RLS)
+- [ ] Email provider enabled
+- [ ] Email confirmation ON
+- [ ] Site URL set to production Vercel domain
+- [ ] Redirect URL includes production domain with `/**` wildcard
+
+**Vercel**
+- [ ] `NEXT_PUBLIC_SUPABASE_URL` set (production project)
+- [ ] `NEXT_PUBLIC_SUPABASE_ANON_KEY` set (production project)
+- [ ] Build succeeded with no errors
+
+---
+
+### Production smoke test
+
+Run these manually after first deploy.
+
+| Step | Action | Expected |
+|------|--------|----------|
+| 1 | Sign up with real email | Confirmation email received |
+| 2 | Click confirmation link | Redirected to `/library` |
+| 3 | Log out | Redirected to `/login` |
+| 4 | Navigate to `/library` while logged out | Redirected to `/login` |
+| 5 | Log back in | Lands on `/library` |
+| 6 | Add book without cover | Book appears in library |
+| 7 | Add book with cover image | Cover displays (validates signed URL works) |
+| 8 | Edit book → save | Changes persist |
+| 9 | Search / filter library | Results correct |
+| 10 | ISBN lookup on Add form | Fills empty fields from OpenLibrary / Google Books |
+| 11 | Duplicate book | New book created with copied fields |
+| 12 | Delete book with cover | Book gone; storage object removed from bucket |
 
 ---
 
