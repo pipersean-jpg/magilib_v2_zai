@@ -36,6 +36,10 @@ export function BookForm({ existing, bannerMessage }: BookFormProps) {
     dismissSavedBanner,
     stickyActive,
     clearStickyFields,
+    lookupStatus,
+    lookupMessage,
+    triggerLookup,
+    dismissLookupBanner,
   } = useBookForm(existing)
 
   const [publishers, setPublishers] = useState<string[]>([])
@@ -243,6 +247,43 @@ export function BookForm({ existing, bannerMessage }: BookFormProps) {
               warning={fieldWarnings.isbn_10}
             />
           </div>
+          {!existing && (
+            <div className="flex flex-col gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => triggerLookup()}
+                disabled={
+                  lookupStatus === 'loading' ||
+                  (!values.isbn_13.replace(/[\s-]/g, '') && !values.isbn_10.replace(/[\s-]/g, ''))
+                }
+              >
+                {lookupStatus === 'loading' ? 'Looking up…' : 'Look Up from ISBN'}
+              </Button>
+              {lookupStatus !== 'idle' && lookupStatus !== 'loading' && lookupMessage && (
+                <div
+                  className={`rounded-lg p-3 text-sm flex items-center justify-between ${
+                    lookupStatus === 'filled'
+                      ? 'bg-green-50 border border-green-200 text-green-800'
+                      : lookupStatus === 'error'
+                        ? 'bg-amber-50 border border-amber-200 text-amber-800'
+                        : 'bg-stone-100 border border-stone-200 text-stone-700'
+                  }`}
+                >
+                  <span>{lookupMessage}</span>
+                  <button
+                    type="button"
+                    onClick={dismissLookupBanner}
+                    className="ml-3 font-medium hover:opacity-75"
+                    aria-label="Dismiss lookup result"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
           <Input
             label="Pages"
             type="number"

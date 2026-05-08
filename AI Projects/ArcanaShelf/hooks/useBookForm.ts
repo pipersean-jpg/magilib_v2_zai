@@ -5,6 +5,7 @@ import { createBook, updateBook, getBookImages } from '@/lib/books'
 import { uploadBookImage, deleteBookImage } from '@/lib/storage'
 import { createClient } from '@/lib/supabase/client'
 import type { Book, BookInsert, BookUpdate } from '@/types/book'
+import type { LookupResult } from '@/lib/sources'
 
 export type BookFormValues = {
   title: string
@@ -40,6 +41,8 @@ export type BookFormValues = {
 
 type FieldErrors = Partial<Record<keyof BookFormValues, string>>
 type FieldWarnings = Partial<Record<keyof BookFormValues, string>>
+
+type LookupStatus = 'idle' | 'loading' | 'filled' | 'no-match' | 'error'
 
 const DEFAULT_VALUES: BookFormValues = {
   title: '',
@@ -259,6 +262,8 @@ export function useBookForm(existing?: Book) {
   const [imageError, setImageError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [fieldWarnings, setFieldWarnings] = useState<FieldWarnings>({})
+  const [lookupStatus, setLookupStatus] = useState<LookupStatus>('idle')
+  const [lookupMessage, setLookupMessage] = useState<string | null>(null)
 
   function setValue<K extends keyof BookFormValues>(key: K, val: BookFormValues[K]) {
     setValues((prev) => ({ ...prev, [key]: val }))
@@ -292,6 +297,54 @@ export function useBookForm(existing?: Book) {
 
   function dismissSavedBanner() {
     setSavedTitle(null)
+  }
+
+  function dismissLookupBanner() {
+    setLookupStatus('idle')
+    setLookupMessage(null)
+  }
+
+  async function triggerLookup() {
+    const isbn = values.isbn_13.trim() || values.isbn_10.trim()
+    if (!isbn || submitting) return
+
+    setLookupStatus('loading')
+    setLookupMessage(null)
+
+    let data: { result: LookupResult | null }
+    try {
+      const res = await fetch(`/api/isbn-lookup?isbn=${encodeURIComponent(isbn)}`)
+      if (!res.ok) throw new Error('Request failed')
+      data = await res.json()
+    } catch {
+      setLookupStatus('error')
+      setLookupMessage('Lookup failed — try again or continue manually.')
+      return
+    }
+
+    if (!data.result) {
+      setLookupStatus('no-match')
+      setLookupMessage('No match found — continue entering manually.')
+      return
+    }
+
+    const result = data.result
+    let filled = 0
+    const updates: Partial<BookFormValues> = {}
+
+    if (result.title && !values.title) { updates.title = result.title; filled++ }
+    if (result.subtitle && !values.subtitle) { updates.subtitle = result.subtitle; filled++ }
+    if (result.authors?.length && !values.authors) { updates.authors = result.authors.join(', '); filled++ }
+    if (result.publisher && !values.publisher) { updates.publisher = result.publisher; filled++ }
+    if (result.description && !values.description) { updates.description = result.description; filled++ }
+    if (result.isbn_10 && !values.isbn_10) { updates.isbn_10 = result.isbn_10; filled++ }
+    if (result.isbn_13 && !values.isbn_13) { updates.isbn_13 = result.isbn_13; filled++ }
+    if (result.year !== undefined && !values.year) { updates.year = String(result.year); filled++ }
+    if (result.page_count !== undefined && !values.page_count) { updates.page_count = String(result.page_count); filled++ }
+
+    if (filled > 0) setValues((prev) => ({ ...prev, ...updates }))
+    setLookupStatus('filled')
+    setLookupMessage(`Found. ${filled} field${filled === 1 ? '' : 's'} filled — review before saving.`)
   }
 
   async function submit(mode: 'save' | 'saveAndAdd' = 'save') {
@@ -405,5 +458,9 @@ export function useBookForm(existing?: Book) {
     dismissSavedBanner,
     stickyActive,
     clearStickyFields,
+    lookupStatus,
+    lookupMessage,
+    triggerLookup,
+    dismissLookupBanner,
   }
 }
